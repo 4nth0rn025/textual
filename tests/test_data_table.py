@@ -413,6 +413,44 @@ async def test_clear():
         assert len(table.columns) == 0
 
 
+async def test_render_with_fixed_rows_when_fewer_rows_than_fixed_rows() -> None:
+    """Regression test for https://github.com/Textualize/textual/issues/4900.
+
+    render_line() used to ask for the height of every fixed row without checking
+    whether the row actually existed. When the table had fewer rows than fixed_rows
+    (for example straight after clear(), before new rows were added) this raised a
+    KeyError while the widget was painting.
+    """
+    app = DataTableApp()
+    async with app.run_test() as pilot:
+        table = app.query_one(DataTable)
+        table.add_column("Column0")
+        table.add_rows([["Row0"], ["Row1"], ["Row2"]])
+        table.fixed_rows = 2
+        await pilot.pause()
+
+        # Rendering an empty table while fixed rows are configured used to crash.
+        table.clear()
+        await pilot.pause()
+        for y in range(table.size.height):
+            assert table.render_line(y) is not None
+
+        # Setting more fixed rows than there are data rows must also paint without
+        # error (this is the state at startup, before rows have been added).
+        table.fixed_rows = 5
+        await pilot.pause()
+        for y in range(table.size.height):
+            assert table.render_line(y) is not None
+
+        # The fixed rows are still fixed when new rows are added afterwards.
+        table.fixed_rows = 1
+        table.add_row("New row")
+        await pilot.pause()
+        assert table.row_count == 1
+        for y in range(table.size.height):
+            assert table.render_line(y) is not None
+
+
 async def test_column_labels() -> None:
     app = DataTableApp()
     async with app.run_test():

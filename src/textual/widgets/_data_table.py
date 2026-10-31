@@ -2480,8 +2480,15 @@ class DataTable(ScrollView, Generic[CellType], can_focus=True):
         scroll_x, scroll_y = self.scroll_offset
 
         fixed_row_keys: list[RowKey] = [
-            self._row_locations.get_key(row_index)
+            row_key
             for row_index in range(self.fixed_rows)
+            # The table may have fewer rows than fixed_rows - for example straight
+            # after clear(), before new rows have been added - so only account for
+            # fixed rows that currently exist.
+            if (
+                (row_key := self._row_locations.get_key(row_index)) is not None
+                and row_key in self.rows
+            )
         ]
 
         fixed_rows_height = sum(
